@@ -1,0 +1,80 @@
+﻿name: bulid
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+env:
+  NOPAUSE: 1
+  REMOVE_TMP: 1
+  RETENTION_DAYS: 3
+
+jobs:
+  build-teraterm:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache-libs
+        uses: actions/cache@v4
+        with:
+          key: libs
+          save-always: true
+          path: |
+            libs/argon2
+            libs/libressl
+            libs/oniguruma
+            libs/SFMT
+            libs/zlib
+            libs/download/cjson
+            libs/download/libressl
+            libs/download/oniguruma
+            libs/download/SFMT
+            libs/download/zlib
+
+      - name: Cache-buildtools
+        uses: actions/cache@v4
+        with:
+          key: buildtools
+          save-always: true
+          path: |
+            buildtools/download
+            buildtools/cygwin64
+            buildtools/innosetup6
+            buildtools/innounp
+            buildtools/unrar
+
+      - name: install
+        shell: cmd
+        run: |
+          cd buildtools
+          cmake -P install_cygwin.cmake
+          cmake -P install_innosetup.cmake
+
+      - name: build
+        shell: cmd
+        run: |
+          cd installer
+          release.bat 2
+
+      - name: artifacts_exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts_exe
+          path: installer/Output/teraterm-*-snapshot.exe
+          retention-days: ${{env.RETENTION_DAYS}}
+
+      - name: artifacts_zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts_zip
+          path: installer/Output/teraterm-*-snapshot.zip
+          retention-days: ${{env.RETENTION_DAYS}}
+
+      - name: artifacts_pdb_zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts_pdb_zip
+          path: installer/Output/teraterm-*-snapshot_pdb.zip
+          retention-days: ${{env.RETENTION_DAYS}}
