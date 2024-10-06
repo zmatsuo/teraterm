@@ -139,8 +139,8 @@ DllExport BOOL HasBalloonTipSupport();
 DllExport char *mctimelocal(const char *format, BOOL utc_flag);
 char *strelapsed(DWORD start_time);
 
-void b64encode(PCHAR dst, int dsize, PCHAR src, int len);
-DllExport int b64decode(PCHAR dst, int dsize, PCHAR src);
+void b64encode(char *dst, int dsize, const char *src, int len);
+DllExport int b64decode(char *dst, int dsize, const char *src);
 
 DllExport wchar_t * PASCAL GetParam(wchar_t *buff, size_t size, wchar_t *param);
 DllExport void PASCAL DequoteParam(wchar_t *dest, size_t dest_len, wchar_t *src);

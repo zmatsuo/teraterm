@@ -138,3 +138,27 @@ HBITMAP GDIPLoad(const wchar_t *filename)
 	}
 	return hBmp;
 }
+
+HBITMAP GDIPLoadMemory(const void *image_ptr, size_t image_size)
+{
+	IStream *stream;
+	CreateStreamOnHGlobal(NULL, TRUE, &stream);
+	ULONG written;
+	stream->Write(image_ptr, image_size, &written);
+
+	Gdiplus::Bitmap *bitmap = Gdiplus::Bitmap::FromStream(stream);
+	stream->Release();
+	if (bitmap->GetLastStatus() != Gdiplus::Ok) {
+		delete bitmap;
+		return NULL;
+	}
+
+	HBITMAP hBmp;
+	Gdiplus::Color bgColor = Gdiplus::Color(0, 0, 0);
+	Gdiplus::Status r = bitmap->GetHBITMAP(bgColor, &hBmp);
+	delete bitmap;
+	if (r != Gdiplus::Ok) {
+		return NULL;
+	}
+	return hBmp;
+}

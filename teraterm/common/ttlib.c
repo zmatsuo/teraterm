@@ -73,7 +73,7 @@ static char b64dec_table[] = {
    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-void b64encode(PCHAR d, int dsize, PCHAR s, int len)
+void b64encode(char *d, int dsize, const char *s, int len)
 {
 	unsigned int b = 0;
 	int state = 0;
@@ -127,7 +127,7 @@ void b64encode(PCHAR d, int dsize, PCHAR s, int len)
 	return;
 }
 
-int b64decode(PCHAR dst, int dsize, PCHAR src)
+int b64decode(char *dst, int dsize, const char *src)
 {
 	unsigned int b = 0;
 	char c;

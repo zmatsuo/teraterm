@@ -998,6 +998,24 @@ OSC 4 ; <i>c</i> ; rgb:<i>rrrr</i>/<i>gggg</i>/<i>bbbb</i> ST
 <tr><td> 117 </td>		<td>太字属性の背景色を初期値に戻す。</td></tr>
 <!-- tr><td> 118 </td>		<td>TEKウィンドウのカーソル色を初期値に戻す。</td></tr -->
 <tr><td> 119 </td>		<td>太字属性の文字色を初期値に戻す。</td></tr>
+<tr><td> 1337 </td>		<td>ファイル転送<br>
+    OSC 1337 File=[arguments]:[base64 data] BEL<br>
+    argumentsは次の内容を受け付ける。
+    <table border="1">
+      <tr><th>argument</th>	<th>value</th></tr>
+      <tr><td>name</td>	<td>base64でエンコードしたUTF-8ファイル名</td></tr>
+      <tr><td>size</td> <td>ファイルサイズ</td></tr>
+      <!--tr><td>width</td> <td>画像幅</td></tr-->
+      <!--tr><td>height</td> <td>画像高</td></tr-->
+      <!--tr><td>preserveAspectRatio</td></tr-->
+      <!--tr><td>inline</td> <td>0のときファイルへ保存(デフォルト), 1のときインライン表示</td></tr-->
+    </table>
+    argumentは';'で区切って複数指定する。<br>
+    base64 data はbase64でエンコードしたファイルの内容。<br><br>
+例
+<pre>OSC 1337;FILE=name=c2FtcGxlLnR4dA==;size=123:/9j/4AAQSkZJRgABAA.... BEL</pre>
+"c2FtcGxlLnR4dA==" は "sample.txt" の base64。
+</td></tr>
 </table>
 
 <h2 id="SOS">SOSシーケンス</h2>

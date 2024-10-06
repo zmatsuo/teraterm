@@ -48,6 +48,7 @@
 #include "vtdisp.h"
 #include "keyboard.h"
 #include "ttlib.h"
+#include "ttlib_types.h"	// for GetFileDir()
 #include "filesys.h"
 #include "teraprn.h"
 #include "telnet.h"
@@ -5014,6 +5015,122 @@ static void XsProcClipboard(PCHAR buff)
 	}
 }
 
+static void osc1337(const char *buff, size_t len)
+{
+	struct {
+		char *fnameU8;
+		size_t size;
+		int width;
+		int height;
+		int preserveAspectRatio;
+		int inline_;
+	} params;
+	struct {
+		const char *key;
+		int type;  // 0/1/2/3 = filename/size_t/int/"File="
+		void *ptr;
+	} key_list[] = {
+		{ "File=", 3, NULL},
+		{ "name=", 0, &params.fnameU8},
+		{ "size=", 1, &params.size },
+		{ "width=", 2, &params.width },
+		{ "height=", 2, &params.width },
+		{ "preserveAspectRatio=", 2, &params.preserveAspectRatio },
+		{ "inline=", 2, &params.inline_ },
+	};
+	memset(&params, 0, sizeof(params));
+
+	// parse params
+	const char *p;
+	for (p = buff; p != 0 ; p++) {
+		const char *q;
+		for (q = p; *q != 0; q++) {
+			if (*q == ':' || *q == ';') {
+				int i = 0;
+				for (i = 0; i < _countof(key_list); i++) {
+					const char *key = key_list[i].key;
+					size_t key_len = strlen(key);
+					if (strncmp(p, key, key_len) == 0) {
+						const char *s = p + key_len;
+						size_t len = q - s;
+						switch (key_list[i].type) {
+						case 0: {
+							// ファイル名
+							char *fnameU8 = (char *)malloc(len);
+							b64decode(fnameU8, len, s);
+							char **ptr = key_list[i].ptr;
+							*ptr = strdup(fnameU8);
+							free(fnameU8);
+							p = q + 1;
+							break;
+						}
+						case 1: {
+							// size_t
+							size_t *ptr = key_list[i].ptr;
+							*ptr = atoi(s);
+							p = q + 1;
+							break;
+						}
+						case 2: {
+							// int
+							int *ptr = key_list[i].ptr;
+							*ptr = atoi(s);
+							p = q + 1;
+							break;
+						}
+						case 3: {
+							// なにもしない
+							p = s;
+							q = s;
+							break;
+						}
+						default:
+							break;
+						}
+						break;
+					}
+				}
+			}
+			if (*q == ':') {
+				break;
+			}
+		}
+		p = q + 1;
+		break;
+	}
+
+	// file contents
+	size_t b64_size = len - (p - buff);
+	size_t cont_size = b64_size * 3 / 4;
+	char *content = (char *)malloc(cont_size);
+	b64decode(content, b64_size, p);
+
+	size_t file_size = cont_size;
+	if (params.size != 0 && file_size > params.size) {
+		file_size = params.size;
+	}
+
+	// ファイルを書き込む
+	{
+		wchar_t *fnameW = ToWcharU8(params.fnameU8);
+		wchar_t *folder = GetFileDir(&ts);
+		wchar_t *fname_full;
+		aswprintf(&fname_full, L"%s\\%s", folder, fnameW);
+		FILE *fp;
+		_wfopen_s(&fp, fname_full, L"wb");
+		if (fp != NULL) {
+			fwrite(content, file_size, 1, fp);
+			fclose(fp);
+		}
+		free(folder);
+		free(fname_full);
+		free(fnameW);
+	}
+
+	free(content);
+	free(params.fnameU8);
+}
+
 // OSC Sequence
 static void XSequence(BYTE b)
 {
@@ -5191,6 +5308,10 @@ static void XSequence(BYTE b)
 				}
 			}
 			break;
+		  case 1337: {
+			osc1337(StrBuff, StrLen);
+			break;
+		  }
 		}
 		if (StrBuff) {
 			StrBuff[0] = '\0';
