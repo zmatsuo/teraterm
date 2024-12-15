@@ -8,8 +8,14 @@ environment:
 build: off
 
 init:
-  # タイムゾーンを JST に変更
-  - tzutil /s "Tokyo Standard Time"
+  - ps: Set-WinCultureFromLanguageListOptOut -OptOut $False
+  - ps: Set-WinUserLanguageList -LanguageList ja-JP,en-US -Force
+  - ps: Set-TimeZone -Id "Tokyo Standard Time"
+  - ps: Set-WinHomeLocation 122
+  - ps: Set-WinSystemLocale -SystemLocale ja-JP
+  - ps: Set-WinUILanguageOverride -Language ja-JP
+  - ps: Start-Sleep -s 10
+  - ps: Restart-Computer -Force -Confirm:$false
 
 cache:
   - libs
