@@ -544,6 +544,104 @@ private:
 static SerialReconnect *serail_reconnect;
 
 /////////////////////////////////////////////////////////////////////////////
+// TAB Frame
+
+/**
+ *	タブとVTWindowの位置を調整する
+ *
+ *	@param	hWnd	親ウィンドウ
+ *	@param	hTab	タブコントロール
+ *	@param	hVTWnd	VTWindow
+ */
+static void vtwin_pos(HWND hWnd, HWND hTab, HWND hVTWnd)
+{
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+
+	// タブコントロールの高さを取得
+	RECT itemRect;
+	TabCtrl_GetItemRect(hTab, 0, &itemRect);
+	int tabHeight = itemRect.bottom - itemRect.top;
+	int client_width = rc.right - rc.left;
+	MoveWindow(hTab, 0, 0, client_width, tabHeight, TRUE);
+
+	// タブ分を引いた領域
+	TabCtrl_AdjustRect(hTab, FALSE, &rc);
+
+	// VT Window 位置調整
+	if (hVTWnd != NULL) {
+		int width = rc.right - rc.left;
+		int height = rc.bottom - rc.top;
+		MoveWindow(hVTWnd, rc.left, rc.top, width, height, TRUE);
+	}
+}
+
+typedef struct {
+	HWND hVTWnd;
+	HWND hTab;
+} win_data_t;
+
+LRESULT CALLBACK WndProc(HWND hWnd , UINT msg , WPARAM wp , LPARAM lp)
+{
+	static HWND hTab;
+	static TCITEM tc_item;
+
+	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+	case WM_CREATE: {
+		CREATESTRUCTW *p = (CREATESTRUCTW *)lp;
+		win_data_t *data = (win_data_t *)p->lpCreateParams;
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)data);
+
+		// タブコントロール
+		HWND hTab;
+		hTab = CreateWindowExW(0, WC_TABCONTROLW, NULL,
+			WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE,
+			0, 0, 10, 10, hWnd, (HMENU)0x10,
+			p->hInstance, NULL);
+		data->hTab = hTab;
+
+		TCITEM tc_item;
+		tc_item.mask = TCIF_TEXT;
+		tc_item.pszText = "tab1";
+		TabCtrl_InsertItem(hTab , 0 , &tc_item);
+
+		tc_item.pszText = "tab2";
+		TabCtrl_InsertItem(hTab , 1 , &tc_item);
+
+		return 0;
+	}
+
+	case WM_SIZE: {
+		win_data_t *data = (win_data_t *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+
+		if (data->hVTWnd != NULL) {
+			vtwin_pos(hWnd, data->hTab, data->hVTWnd);
+		}
+
+		return 0;
+	}
+	case WM_NOTIFY: {
+		win_data_t *data = (win_data_t *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+		switch (((LPNMHDR)lp)->code) {
+		case TCN_SELCHANGE: {
+			int tab_no = TabCtrl_GetCurSel(data->hTab);
+			char s[64];
+			sprintf_s(s, "tab %d\n", tab_no);
+			OutputDebugStringA(s);
+			break;
+		}
+		}
+		break;
+	}
+	}
+
+	return DefWindowProcW(hWnd , msg , wp , lp);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // CVTWindow constructor
 
 CVTWindow::CVTWindow(HINSTANCE hInstance)
@@ -683,7 +781,7 @@ CVTWindow::CVTWindow(HINSTANCE hInstance)
 		        WS_BORDER | WS_THICKFRAME |
 		        WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 #endif
-
+	Style = WS_CHILD | WS_TABSTOP;
 	wc.style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = (WNDPROC)ProcStub;
 	wc.cbClsExtra = 0;
@@ -699,6 +797,8 @@ CVTWindow::CVTWindow(HINSTANCE hInstance)
 	RegisterClassW(&wc);
 	m_hAccel = ::LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACC));
 
+	ts.VTPos.x = 50;
+	ts.VTPos.y = 50;
 	if (ts.VTPos.x==CW_USEDEFAULT) {
 		rect = rectDefault;
 	}
@@ -708,12 +808,44 @@ CVTWindow::CVTWindow(HINSTANCE hInstance)
 		rect.right = rect.left + 100;
 		rect.bottom = rect.top + 100;
 	}
-	CreateW(hInstance, VTClassName, L"Tera Term", Style, rect, NULL, NULL);
+
+	HWND hWndFrame;
+	win_data_t *frame_data = (win_data_t *)calloc(1, sizeof(*frame_data));	// leak
+	{
+		WNDCLASSW wc;
+		wc.style			= CS_HREDRAW | CS_VREDRAW;
+		wc.lpfnWndProc		= WndProc;
+		wc.cbClsExtra       = 0;
+		wc.cbWndExtra       = 0;
+		wc.hInstance		= hInstance;
+		wc.hIcon			= LoadIcon(NULL , IDI_APPLICATION);
+		wc.hCursor			= LoadCursor(NULL , IDC_ARROW);
+		wc.hbrBackground	= (HBRUSH)GetStockObject(WHITE_BRUSH);
+		wc.lpszMenuName		= NULL;
+		wc.lpszClassName	= L"tab_test";
+
+		if (!RegisterClassW(&wc))
+			return;
+
+		hWndFrame = CreateWindowExW(0,
+									L"tab_test", L"tab test windows title",
+									WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_THICKFRAME,
+									CW_USEDEFAULT, CW_USEDEFAULT,
+									CW_USEDEFAULT, CW_USEDEFAULT,
+									NULL, NULL, hInstance, frame_data);
+	}
+
+	CreateW(hInstance, VTClassName, L"Tera Term", Style, rect, hWndFrame, NULL);
 
 	/*--------- Init2 -----------------*/
 	HVTWin = GetSafeHwnd();
 	if (HVTWin == NULL) return;
 	cv.HWin = HVTWin;
+
+	{
+		frame_data->hVTWnd = HVTWin;
+		vtwin_pos(hWndFrame, frame_data->hTab, frame_data->hVTWnd);
+	}
 
 	// Windows 11 でウィンドウの角が丸くならないようにする
 	if (ts.WindowCornerDontround && pDwmSetWindowAttribute != NULL) {
@@ -3574,6 +3706,7 @@ LRESULT CVTWindow::OnChangeTBar(WPARAM wParam, LPARAM lParam)
 		ExStyle |=  WS_EX_CLIENTEDGE;
 	}
 #endif
+	Style = WS_CHILD | WS_TABSTOP;
 
 	AdjustSize = TRUE;
 	::SetWindowLongPtr(HVTWin, GWL_STYLE, Style);

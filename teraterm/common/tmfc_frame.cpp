@@ -67,12 +67,16 @@ BOOL TTCFrameWnd::CreateW(
 	m_hParentWnd = hParentWnd;
 	pseudoPtr = this;
 	HWND hWnd = CreateWindowExW(
-		WS_EX_OVERLAPPEDWINDOW,
+		//WS_EX_OVERLAPPEDWINDOW,
+		// WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE,
+		 0 ,
 		lpszClassName,
 		lpszWindowName,
-		dwStyle,
-		rect.left, rect.top,
-		rect.right - rect.left, rect.bottom - rect.top,
+		//dwStyle,
+		WS_CHILD,
+		 rect.left, rect.top,
+		 rect.right - rect.left, rect.bottom - rect.top,
+		// 0, 0, 100, 100,
 		hParentWnd,
 		nullptr,
 		hInstance,
