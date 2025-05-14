@@ -882,7 +882,8 @@ CVTWindow::CVTWindow(HINSTANCE hInstance)
 	WinMenu = NULL;
 	if ((ts.HideTitle==0) && (ts.PopupMenu==0)) {
 		InitMenu(&MainMenu);
-		::SetMenu(HVTWin,MainMenu);
+		//::SetMenu(HVTWin,MainMenu);
+		::SetMenu(GetParent(HVTWin), MainMenu);
 	}
 
 	cv.StateEcho = MakeOutputStringCreate();
@@ -3629,8 +3630,13 @@ LRESULT CVTWindow::OnChangeMenu(WPARAM wParam, LPARAM lParam)
 		InitMenu(&MainMenu);
 	}
 
+#if 0
 	::SetMenu(HVTWin, MainMenu);
 	::DrawMenuBar(HVTWin);
+#else
+	::SetMenu(GetParent(HVTWin), MainMenu);
+	::DrawMenuBar(GetParent(HVTWin));
+#endif
 
 	B1 = ((ts.MenuFlag & MF_SHOWWINMENU)!=0);
 	B2 = (WinMenu!=NULL);
