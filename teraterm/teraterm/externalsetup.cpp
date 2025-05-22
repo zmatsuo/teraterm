@@ -49,6 +49,7 @@ static struct {
 	BOOL old_use_unicode_api;
 	char *orgTitle;
 	HWND hWnd_disable;
+	int hWnd_num = 0;
 } ExternalSetupData;
 
 /*
@@ -66,6 +67,7 @@ static struct {
 static void ExternalSetupPreProcess(HWND hWnd, CAddSettingPropSheetDlgPage page)
 {
 	ExternalSetupData.PerProcessCalled = TRUE;
+	ExternalSetupData.hWnd_num++;
 	BOOL all = TRUE;
 	//BOOL all = FALSE;
 	if (page == CAddSettingPropSheetDlgPage::DefaultPage) {
@@ -123,6 +125,7 @@ static void ExternalSetupPreProcess(HWND hWnd, CAddSettingPropSheetDlgPage page)
 static void ExternalSetupPostProcess(CAddSettingPropSheetDlgPage page, BOOL ok)
 {
 	ExternalSetupData.PerProcessCalled = FALSE;
+    ExternalSetupData.hWnd_num--;
 
 	//BOOL all = FALSE;
 	BOOL all = TRUE;
@@ -166,15 +169,19 @@ static void ExternalSetupPostProcess(CAddSettingPropSheetDlgPage page, BOOL ok)
 			// タイトルが変更されていたら、リモートタイトルをクリアする
 			if ((ts.AcceptTitleChangeRequest == IdTitleChangeRequestOverwrite) &&
 				(strcmp(ExternalSetupData.orgTitle, ts.Title) != 0)) {
-				free(cv.TitleRemoteW);
-				cv.TitleRemoteW = NULL;
+				if (ExternalSetupData.hWnd_num == 0) {
+					free(cv.TitleRemoteW);
+					cv.TitleRemoteW = NULL;
+				}
 			}
 			ChangeWin();
 			ChangeFont(0);
 
 		}
-		free(ExternalSetupData.orgTitle);
-		ExternalSetupData.orgTitle = NULL;
+		if (ExternalSetupData.hWnd_num == 0) {
+			free(ExternalSetupData.orgTitle);
+			ExternalSetupData.orgTitle = NULL;
+		}
 	}
 	if (all || page == CAddSettingPropSheetDlgPage::SerialPortPage) {
 		if (ok) {
