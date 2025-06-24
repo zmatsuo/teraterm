@@ -1,29 +1,29 @@
-cd zlib
+call ..\ci_scripts\find_cmake.bat
+pushd zlib
+setlocal
 
-if not exist "win32\Makefile.msc.release" goto mkmf
-for %%F in (win32\Makefile.msc.release) do set mftime=%%~tF
-for %%F in (..\buildzlib.bat) do set battime=%%~tF
-if "%battime%" leq "%mftime%" goto build
+set Platform=win32
+rem set Platform=x64
+rem set Platform=arm64
+set Toolset=v143
+set INSTALL_DIR=../zlib_vs_%Toolset%_%Platform%
+set BUILD_DIR=build_vs_%Toolset%_%Platform%
 
-del zlibd.lib
-nmake -f win32\Makefile.msc.release clean
+"%CMAKE_COMMAND%" ^
+  -B %BUILD_DIR% -S . ^
+  -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+  -DZLIB_BUILD_EXAMPLES=OFF ^
+  -DCMAKE_INSTALL_PREFIX=%INSTALL_DIR% ^
+  -A %Platform%
+pushd %BUILD_DIR%
+"%CMAKE_COMMAND%" --build . --config Debug -j
+"%CMAKE_COMMAND%" --build . --config Release -j
+"%CMAKE_COMMAND%" --install . --config Debug
+"%CMAKE_COMMAND%" --install . --config Release
+popd
 
-:mkmf
-perl -e "open(IN,'win32\Makefile.msc');while(<IN>){s/ -MD/ -MT/;print $_;}close(IN);" > win32\Makefile.msc.release
+"%CMAKE_COMMAND%" -E copy_if_different %BUILD_DIR%/Debug/zlibd.pdb %INSTALL_DIR%/lib
+"%CMAKE_COMMAND%" -E copy_if_different %BUILD_DIR%/Debug/zlibstaticd.pdb %INSTALL_DIR%/lib
 
-perl -e "open(IN,'win32\Makefile.msc');while(<IN>){s/ -MD/ -MTd/;s/ -O2/ -Od/;s/ -release/ -debug/;s/ zlib.lib/ zlibd.lib/;s/ zlib.lib/ zlibd.lib/;print $_;}close(IN);" > win32\Makefile.msc.debug
-
-:build
-if exist zlibd.lib goto build_release
-nmake -f win32\Makefile.msc.debug clean
-nmake -f win32\Makefile.msc.debug OBJA="inffast.obj"
-move zlibd.lib examples\
-move zlib.pdb examples\
-nmake -f win32\Makefile.msc.release clean
-move examples\zlibd.lib .\
-move examples\zlib.pdb .\
-
-:build_release
-nmake -f win32\Makefile.msc.release OBJA="inffast.obj"
-
-cd ..
+endlocal
+popd
